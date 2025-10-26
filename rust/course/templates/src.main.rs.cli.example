@@ -1,0 +1,69 @@
+use std::path::PathBuf;
+
+use anyhow::Result;
+use clap::{Parser, Subcommand, ValueEnum};
+use tracing::{error, info};
+
+#[derive(Parser, Debug)]
+#[command(name = "toolbox", version, about = "Multi-backend toolbox")] 
+struct Cli {
+    /// Backend kind
+    #[arg(long, value_enum, default_value_t = BackendKind::File)]
+    backend: BackendKind,
+
+    /// Path (file backend) or Base URL (http backend)
+    #[arg(long)]
+    target: String,
+
+    #[command(subcommand)]
+    cmd: Commands,
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum BackendKind { File, Http }
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    List,
+    Get { id: String },
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt().with_env_filter("info").init();
+    if let Err(err) = real_main().await {
+        error!(error = %err, "command failed");
+        std::process::exit(1);
+    }
+}
+
+async fn real_main() -> Result<()> {
+    let cli = Cli::parse();
+    match cli.cmd {
+        Commands::List => {
+            let items = match cli.backend {
+                BackendKind::File => file_list(PathBuf::from(cli.target)).await?,
+                BackendKind::Http => http_list(cli.target).await?,
+            };
+            println!("{}", serde_json::to_string_pretty(&items)?);
+        }
+        Commands::Get { id } => {
+            let item = match cli.backend {
+                BackendKind::File => file_get(PathBuf::from(cli.target), &id).await?,
+                BackendKind::Http => http_get(cli.target, &id).await?,
+            };
+            println!("{}", serde_json::to_string_pretty(&item)?);
+        }
+    }
+    Ok(())
+}
+
+// Stubs for the labs — implement me.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Item { id: String }
+
+async fn file_list(_dir: PathBuf) -> Result<Vec<Item>> { Ok(vec![]) }
+async fn file_get(_dir: PathBuf, id: &str) -> Result<Item> { Ok(Item { id: id.into() }) }
+async fn http_list(_base: String) -> Result<Vec<Item>> { Ok(vec![]) }
+async fn http_get(_base: String, id: &str) -> Result<Item> { Ok(Item { id: id.into() }) }
+

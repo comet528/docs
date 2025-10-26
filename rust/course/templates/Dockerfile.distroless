@@ -1,0 +1,25 @@
+# Multi-stage: GNU build → distroless cc (glibc)
+
+FROM rust:1-bookworm AS build
+WORKDIR /app
+
+# Cache deps
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main(){}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+
+# Build
+COPY . .
+RUN cargo build --release && \
+    strip target/release/restsvc || true
+
+FROM gcr.io/distroless/cc-debian12 AS runtime
+ENV RUST_LOG=info \
+    PORT=8080
+USER 65532:65532
+WORKDIR /app
+COPY --from=build /app/target/release/restsvc /app/restsvc
+EXPOSE 8080
+ENTRYPOINT ["/app/restsvc"]
+
