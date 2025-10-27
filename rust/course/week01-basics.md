@@ -7,11 +7,11 @@ Objectives
 - Write and test a small CLI with `cargo`.
 
 Day 1 — Environment & Hello World
+- Start here: see `rust/course/quickstart-hello.md` for a full, copy-pasteable walkthrough.
 - Install: `rustup`, `rustc`, `cargo`. Add rust-analyzer in your editor.
-- Project: `cargo new hello-rust && cd hello-rust`
-- Code: print, format, and simple functions.
-- Build & run: `cargo run`, `cargo build --release`.
-- Compare to Go: `cargo` ≈ `go` tool + modules + test in one; binary by default; debug vs release profiles.
+- Create: `cargo new hello-rust && cd hello-rust`.
+- Run: `cargo run`, then accept an arg via `std::env::args`, add a unit test, and build a release binary.
+- Compare to Go: `cargo` ≈ `go` tool + modules + test in one; debug vs release profiles; `cargo check` for fast type checks.
 
 Day 2 — Types, Control Flow, Match
 - Bindings: `let`, `let mut`, shadowing, constants `const`.
@@ -19,23 +19,25 @@ Day 2 — Types, Control Flow, Match
 - Control: `if`, `loop/break`, `while`, `for` over iterators.
 - Pattern matching with `match` and `if let`.
 - Lab: parse numbers from args, compute min/max/mean.
+  Hint: iterate with `std::env::args().skip(1)`, parse with `str::parse::<f64>()`, and aggregate via iterator adaptors.
 
 Day 3 — Ownership & Borrowing (Intro)
 - Moves vs copies; `Copy` types; `clone` vs referencing `&T`/`&mut T`.
 - Lifetimes (preview): compilers infer most lifetimes; avoid storing references unless needed.
 - `Option<T>` and `Result<T, E>`; the `?` operator.
-- Lab: function that reads a file path from args, returns `Result<String, std::io::Error>`.
+- Lab: write `fn read_to_string(path: &str) -> std::io::Result<String>`; call from `main` with `?` and handle the `Result` at the top.
 
 Day 4 — Modules, Tests, Docs
 - Modules: `mod`, `pub`, `use`, file layout.
 - Unit tests: `#[cfg(test)] mod tests { ... }`, `cargo test`.
 - Doc comments `///` and examples `/// ```rust`.
-- Lab: factor logic into lib module; add tests for edge cases.
+- Lab: factor logic into `lib.rs` module; add tests for edge cases and one doc-test in a `///` example.
 
 Checkpoint — Tiny CLI
 - Build `numtool` CLI: `cargo new numtool`.
 - Input: numbers from stdin or space-separated args.
 - Output: `--sum`, `--avg`, `--min`, `--max` flags (pick 2–3).
+- Parsing tip: start with `std::env::args` or add `clap` for robust flags.
 - Deliverable: release binary in `target/release/numtool` with tests covering zero/invalid input.
 
 Go vs Rust Highlights (Week 1)
@@ -47,4 +49,3 @@ Useful Commands
 - Format/lint: `cargo fmt --all`, `cargo clippy -- -D warnings`.
 - Show dependency tree: `cargo tree`.
 - Run one test: `cargo test <name>`.
-
