@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop, '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo builds
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust/toolbox -> target
+            rust/restsvc -> target
+
+      - name: Format check (toolbox)
+        working-directory: rust/toolbox
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (toolbox)
+        working-directory: rust/toolbox
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test (toolbox)
+        working-directory: rust/toolbox
+        run: cargo test --workspace --all-features
+
+      - name: Build release (toolbox)
+        working-directory: rust/toolbox
+        run: cargo build --workspace --release
+
+      - name: Format check (restsvc)
+        working-directory: rust/restsvc
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (restsvc)
+        working-directory: rust/restsvc
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test (restsvc)
+        working-directory: rust/restsvc
+        run: cargo test --all-features
+
+      - name: Build release (restsvc)
+        working-directory: rust/restsvc
+        run: cargo build --release
+

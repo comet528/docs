@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-binaries:
+    name: Build binaries (Linux x86_64 + MUSL)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust/toolbox -> target
+            rust/restsvc -> target
+
+      - name: Install MUSL tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+
+      - name: Build toolbox (glibc)
+        working-directory: rust/toolbox
+        run: cargo build -p toolbox-cli --release
+
+      - name: Build toolbox (musl)
+        working-directory: rust/toolbox
+        run: cargo build -p toolbox-cli --release --target x86_64-unknown-linux-musl
+
+      - name: Build restsvc (glibc)
+        working-directory: rust/restsvc
+        run: cargo build --release
+
+      - name: Build restsvc (musl)
+        working-directory: rust/restsvc
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Package artifacts
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          # Toolbox
+          cp rust/toolbox/target/release/toolbox-cli dist/toolbox-linux-amd64
+          cp rust/toolbox/target/x86_64-unknown-linux-musl/release/toolbox-cli dist/toolbox-linux-amd64-musl
+          # Restsvc
+          cp rust/restsvc/target/release/restsvc dist/restsvc-linux-amd64
+          cp rust/restsvc/target/x86_64-unknown-linux-musl/release/restsvc dist/restsvc-linux-amd64-musl
+          # Tarballs
+          tar -C dist -czf dist/toolbox-linux-amd64.tar.gz toolbox-linux-amd64
+          tar -C dist -czf dist/toolbox-linux-amd64-musl.tar.gz toolbox-linux-amd64-musl
+          tar -C dist -czf dist/restsvc-linux-amd64.tar.gz restsvc-linux-amd64
+          tar -C dist -czf dist/restsvc-linux-amd64-musl.tar.gz restsvc-linux-amd64-musl
+          # Checksums
+          (cd dist && sha256sum *.tar.gz > SHA256SUMS)
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/toolbox-linux-amd64.tar.gz
+            dist/toolbox-linux-amd64-musl.tar.gz
+            dist/restsvc-linux-amd64.tar.gz
+            dist/restsvc-linux-amd64-musl.tar.gz
+            dist/SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-images:
+    name: Build and push container images (GHCR)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_NAME: restsvc
+      REGISTRY: ghcr.io
+      OWNER: ${{ github.repository_owner }}
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push distroless image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./rust/restsvc
+          file: ./rust/restsvc/Dockerfile.distroless
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:distroless-latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:distroless-${{ env.VERSION }}
+
+      - name: Build and push musl (scratch) image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./rust/restsvc
+          file: ./rust/restsvc/Dockerfile.musl
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:musl-latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAME }}:musl-${{ env.VERSION }}
+

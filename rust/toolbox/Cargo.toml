@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "toolbox-core",
+    "toolbox-cli",
+]
+resolver = "2"
+
