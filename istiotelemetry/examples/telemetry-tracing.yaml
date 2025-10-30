@@ -1,0 +1,15 @@
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: ns-tracing
+  namespace: your-namespace
+spec:
+  selector: {}
+  tracing:
+  - providers:
+    - name: opentelemetry
+    randomSamplingPercentage: 20
+    customTags:
+      x_cert_dn:
+        header:
+          name: x-cert-dn

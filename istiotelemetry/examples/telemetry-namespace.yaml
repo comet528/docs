@@ -1,0 +1,27 @@
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: ns-default-metrics
+  namespace: your-namespace
+spec:
+  selector: {}
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    - match:
+        metric: REQUEST_DURATION
+      tagOverrides:
+        source_workload: { value: source.workload }
+        source_workload_namespace: { value: source.namespace }
+        destination_workload: { value: destination.workload }
+        destination_workload_namespace: { value: destination.namespace }
+        response_code: { value: response.code }
+    - match:
+        metric: REQUEST_COUNT
+      tagOverrides:
+        source_workload: { value: source.workload }
+        source_workload_namespace: { value: source.namespace }
+        destination_workload: { value: destination.workload }
+        destination_workload_namespace: { value: destination.namespace }
+        response_code: { value: response.code }

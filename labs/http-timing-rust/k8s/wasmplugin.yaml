@@ -1,0 +1,13 @@
+apiVersion: extensions.istio.io/v1alpha1
+kind: WasmPlugin
+metadata:
+  name: http-timing
+  namespace: default # change to your target namespace
+spec:
+  url: oci://ghcr.io/your-org/http-timing:v0.1.0 # change to your image
+  phase: STATS
+  priority: 100
+  failOpen: true
+  selector: {}
+  pluginConfig: {}
+
